@@ -175,6 +175,603 @@ This approach demonstrates two methods for retrieving the nth highest salary—o
 ---
 
 
+Here’s your explanation formatted in **GitHub Markdown**:
+
+---
+
+### 8. Differences Between Window Functions and Aggregate Functions
+
+The main difference between window functions and aggregate functions lies in **how they process rows** and **what they return**:
+
+- **Aggregate Functions**: Summarize data into a single value for a group of rows.
+  - **Example**:
+    ```sql
+    SELECT CustomerID, SUM(Amount) AS TotalRevenue
+    FROM Transactions
+    GROUP BY CustomerID;
+    ```
+    *Output*: One row per customer with their total revenue.
+
+- **Window Functions**: Perform calculations across a set of rows but **return a value for each individual row**. They don’t reduce the number of rows.
+  - **Example**:
+    ```sql
+    SELECT CustomerID, Amount, 
+           SUM(Amount) OVER (PARTITION BY CustomerID ORDER BY Date) AS RunningTotal
+    FROM Transactions;
+    ```
+    *Output*: Running total for each transaction, while keeping all rows intact.
+
+---
+
+### Key Difference:
+- **Aggregate Functions**: **Summarize** data.
+- **Window Functions**: Perform **row-level calculations** within a group or dataset.
+
+---
+
+
+# 9. Pros and Cons of Using Indexes in SQL
+
+### Overview  
+This document explains the benefits and drawbacks of using indexes in SQL and when it might be best to avoid them.
+
+---
+
+## Pros of Indexes  
+- **Faster Query Performance**: Speeds up `SELECT` queries, especially on large tables, by allowing quick lookups.  
+- **Efficient for Lookups**: Great for `WHERE` clauses and joins—indexes make these operations much faster.  
+- **Enforce Uniqueness**: Helps enforce `UNIQUE` constraints, ensuring no duplicate values in indexed columns.
+
+---
+
+## Cons of Indexes  
+- **Slower Write Operations**: `INSERT`, `UPDATE`, and `DELETE` operations take longer since the index also needs to be updated.  
+- **Extra Storage**: Indexes require additional disk space, which can be significant for large tables.  
+- **Overhead on Small Tables**: For small tables, indexes might slow things down because the table can be scanned quickly without an index.
+
+---
+
+## When to Avoid Indexes  
+- **Small Tables**: Full table scans are faster, so indexes add unnecessary overhead.  
+- **Frequent Writes**: If a table is constantly updated, the time spent updating indexes can outweigh the benefits.  
+- **Low Cardinality Columns**: For columns with few unique values (e.g., "Yes"/"No"), indexing provides little benefit and can waste resources.
+
+---
+
+### Summary  
+Indexes are powerful tools for optimizing database performance, especially for read-heavy operations on large datasets. However, their impact on write performance and storage means they should be used thoughtfully based on the use case.
+
+---
+
+
+
+# 10. How would you optimize a slow-running query with multiple joins?
+
+**You**: Ah, optimizing queries with joins is key! Here's what I'd do:
+
+### 1. **Check the Join Types**:  
+   - First, make sure you’re using the right join types. If you don’t need all the data from the tables, maybe switch to an `INNER JOIN` instead of a `LEFT JOIN`. `INNER JOIN` generally performs better since it only returns rows that match.
+
+### 2. **Eliminate Unnecessary Joins**:  
+   - Sometimes queries include joins that aren’t really needed. So, I’d double-check if any joins can be removed or replaced with filters in the `WHERE` clause.
+
+### 3. **Filter Early**:  
+   - I’d apply filters before the join operation. This way, you’re reducing the data set size before doing the joins, which can help the query run faster.
+
+### 4. **Check Indexing**:  
+   - Joins work faster when they’re on indexed columns. If the columns you're joining on aren’t indexed, it’s worth adding indexes to speed things up.
+
+### 5. **Use Subqueries or CTEs**:  
+   - Sometimes using subqueries or **CTEs (Common Table Expressions)** to pre-aggregate or filter data before joining can help reduce the workload on the main query.
+
+### 6. **Look at the Query Execution Plan**:  
+   - I’d definitely look at the **execution plan** to spot any bottlenecks, like unnecessary table scans. This gives insights on where the query can be optimized.
+
+### 7. **Don’t Use `SELECT *`**:  
+   - Avoid using `SELECT *`, as it pulls more data than needed. Explicitly select the columns you actually need for the result.
+
+So, in short, it’s all about reducing the amount of data being worked on and making sure you're indexing things right to speed it up.
+
+---
+
+# 11. Recursive CTE in SQL
+
+**Interviewer**: What is a recursive CTE, and can you provide an example of when to use it?
+
+**You**: Great question! A **recursive CTE (Common Table Expression)** is a special type of CTE that allows a query to refer to itself. It's useful when you need to work with hierarchical data or data that follows a parent-child relationship, like organizational structures or product categories.
+
+### How It Works:
+A recursive CTE has two parts:
+1. **Base Query**: The initial result set, which forms the starting point of the recursion.
+2. **Recursive Query**: The part that references the CTE itself to build subsequent levels of the hierarchy.
+
+It keeps executing the recursive query until it reaches a stopping condition (like no more data to return).
+
+### Example Use Case:
+Let’s say you have an `Employees` table with columns `EmployeeID`, `ManagerID`, and `Name`, and you want to get the hierarchy of employees under a specific manager.
+
+Here’s an example of how to use a recursive CTE to get employees under a specific manager:
+
+```sql
+WITH EmployeeHierarchy AS (
+    -- Base Query: Select the manager
+    SELECT EmployeeID, Name, ManagerID, 1 AS Level
+    FROM Employees
+    WHERE ManagerID IS NULL  -- Root manager
+
+    UNION ALL
+
+    -- Recursive Query: Select employees reporting to the current employee
+    SELECT e.EmployeeID, e.Name, e.ManagerID, eh.Level + 1
+    FROM Employees e
+    INNER JOIN EmployeeHierarchy eh
+    ON e.ManagerID = eh.EmployeeID
+)
+-- Final result
+SELECT EmployeeID, Name, ManagerID, Level
+FROM EmployeeHierarchy
+ORDER BY Level, ManagerID;
+```
+
+### Explanation:
+- The **Base Query** selects the root employee (e.g., the manager with no `ManagerID`).
+- The **Recursive Query** joins the `EmployeeHierarchy` CTE to the `Employees` table to find employees who report to the current set of employees.
+- The recursion continues until there are no more employees under the current ones.
+
+### When to Use It:
+You'd use a recursive CTE when you need to deal with hierarchical or recursive relationships in your data, such as:
+- Employee reporting structures (managers and their direct reports).
+- Parts and subparts (like a product assembly).
+- Organizational charts.
+- File directory structures.
+
+Recursive CTEs are really powerful for these types of problems where you need to “walk” through layers of data.
+
+---
+
+# 12. Clustered vs. Non-Clustered Indexes in SQL
+
+
+**Interviewer**: Can you explain the difference between clustered and non-clustered indexes and when you would use each?
+
+**You**: Sure! So, the main difference between the two comes down to how the data is organized and accessed in the database.
+
+### Clustered Index:
+Think of a **clustered index** like a book where the chapters are arranged in alphabetical order. The data in the table itself is physically sorted based on the clustered index. 
+
+- **Key thing**: There’s only **one** clustered index per table because the data can only be sorted one way.
+- **When to use it**: I’d use it when you’re often querying based on a range of values, like dates, or when sorting data frequently. For example, if you have a table of sales transactions and you often query by transaction date, a clustered index on the date column would be super helpful because the data is already physically sorted that way.
+
+### Non-Clustered Index:
+Now, imagine a **non-clustered index** as a table of contents at the start of the book. It doesn’t change how the chapters are organized but gives you pointers to find things quickly.
+
+- **Key thing**: You can have **multiple** non-clustered indexes, each pointing to different columns.
+- **When to use it**: I’d use a non-clustered index when you need to quickly look up data based on a column that’s not part of the clustered index, like searching by customer name or product ID. It’s especially useful for read-heavy queries where you're looking for specific values, but don't necessarily need the data sorted.
+
+### So, to sum it up:
+- **Clustered index**: Good for queries where you need the data to be ordered or when you’re working with ranges, like date ranges. Only one per table.
+- **Non-clustered index**: Best for fast lookups on specific columns, and you can have multiple of them on the same table.
+
+---
+# 13. Detect and Resolve deadlocks
+**Interviewer**: How would you detect and resolve deadlocks in SQL?
+
+**You**: Great question! Deadlocks happen when two or more processes are blocking each other by holding locks on resources and waiting for each other to release them. It’s like a stand-off where neither can proceed. Let me break it down:
+
+### Detecting Deadlocks:
+1. **SQL Server Deadlock Graph**: In SQL Server, deadlocks are detected automatically. When a deadlock occurs, SQL Server generates a **deadlock graph** that shows the processes involved and the resources they’re waiting for. This can be captured using the **SQL Server Profiler** or by querying the system views like `sys.dm_exec_requests` and `sys.dm_tran_locks`.
+   
+2. **Trace Flags**: You can enable trace flag `1204` or `1222` to get detailed information about deadlocks in the SQL error log.
+   - **Trace Flag 1204**: Gives a detailed deadlock graph.
+   - **Trace Flag 1222**: Provides a more readable deadlock graph, useful for troubleshooting.
+
+3. **SQL Server Error Logs**: Deadlock information is often logged in SQL Server error logs, which you can check to identify deadlocks.
+
+4. **Extended Events**: You can also use **Extended Events** to monitor deadlocks in real-time and capture detailed information.
+
+### Resolving Deadlocks:
+1. **Use Proper Indexing**: Ensure that your queries are optimized and use appropriate indexes. Poor indexing can cause scans that lock more rows than necessary, leading to potential deadlocks.
+   
+2. **Locking Order**: Ensure that all transactions acquire locks in the same order. If two transactions request locks on resources in opposite order, it can cause a deadlock.
+
+3. **Keep Transactions Short**: The longer a transaction runs, the more likely it is to cause a deadlock. I’d suggest breaking down large transactions into smaller ones to minimize the time locks are held.
+
+4. **Use `WITH (NOLOCK)`**: For **read-only** operations, you can use `WITH (NOLOCK)` to avoid locks, though this can lead to dirty reads. It's best used when consistency isn't a priority.
+
+5. **Deadlock Retry Logic**: In your application code, you can implement retry logic. If a transaction is involved in a deadlock, you can catch the deadlock error and retry the operation a few times.
+
+6. **Analyze and Refactor Queries**: Look at your long-running or frequently executed queries. Sometimes, deadlocks occur due to inefficient queries. Refactor those to make them more efficient.
+
+---
+
+In short, detecting deadlocks involves monitoring with tools like Profiler, Extended Events, or error logs, and resolving them focuses on optimizing your queries, managing lock order, and ensuring transactions are as short as possible. Does that help clarify things?
+
+
+---
+
+
+
+# 14. 
+
+**Interviewer**: Can you describe the ACID properties in database transactions and their significance?
+
+**You**: Sure! The ACID properties are essential to ensure reliable and safe transactions in databases. Here's a quick breakdown:
+
+- **Atomicity** means the transaction is all or nothing – if one part fails, the whole thing rolls back. For example, if you're transferring money, both debit and credit must happen or neither will.
+  
+- **Consistency** ensures that the database always moves from one valid state to another, maintaining all rules (like integrity constraints). So, if a transaction violates a rule, it won’t go through.
+
+- **Isolation** makes sure that transactions don't interfere with each other. Even if multiple transactions are happening at once, one won’t see the other’s intermediate steps, which prevents errors like dirty reads.
+
+- **Durability** means once a transaction is committed, it’s permanent, even if the system crashes right after. Your data is safe.
+
+### Why is it important?
+ACID properties guarantee that transactions are reliable, consistent, and safe from errors or crashes. It’s crucial for things like banking or e-commerce where data integrity is key.
+
+---
+
+Apologies for that! Here's a more concise and conversational response:
+
+---
+# 15.
+
+**Interviewer**: Could you explain and apply window functions like ROW_NUMBER, RANK, and DENSE_RANK and discuss their differences?
+
+**You**: Sure! So, these are window functions used for ranking data. Here’s the breakdown:
+
+- **ROW_NUMBER**: It gives each row a unique number, even if there are duplicates in the data.
+  - Example: Assigns a unique rank to each employee based on salary.
+  ```sql
+  ROW_NUMBER() OVER (ORDER BY Salary DESC)
+  ```
+
+- **RANK**: It ranks rows, but if there are ties, it skips numbers. So if two employees tie for second, the next rank will be 4.
+  ```sql
+  RANK() OVER (ORDER BY Salary DESC)
+  ```
+
+- **DENSE_RANK**: Similar to RANK, but it doesn’t skip ranks. So if two employees tie for second, the next rank will be 3.
+  ```sql
+  DENSE_RANK() OVER (ORDER BY Salary DESC)
+  ```
+
+### Key Differences:
+- **ROW_NUMBER**: No ties, each gets a unique number.
+- **RANK**: Ties get the same rank, but there’s a gap after.
+- **DENSE_RANK**: Ties get the same rank, but no gap.
+
+---
+# 16. 
+
+**Interviewer**: Describe your approach to optimizing SQL queries. Can you share an example where optimization made a noticeable difference?
+
+**You**: Sure! When optimizing SQL queries, I focus on a few key things:
+
+1. **Indexing**: I always ensure the right columns are indexed, especially for columns involved in `JOIN`, `WHERE`, and `ORDER BY` clauses. Proper indexing speeds up search operations.
+   
+2. **Query Structure**: I try to simplify queries, avoid unnecessary subqueries, and prefer `JOIN` over subselects when possible. It’s often more efficient.
+
+3. **Avoiding SELECT ***: Instead of `SELECT *`, I only select the columns I need. This reduces the data load and speeds up the query.
+
+4. **Using LIMIT**: For large datasets, I use `LIMIT` (or `TOP` in SQL Server) to fetch only the necessary rows, particularly when testing queries.
+
+5. **Proper Data Types**: Using appropriate data types for columns can significantly improve query performance, as smaller data types take up less memory and are faster to process.
+
+### Example:
+I worked on an e-commerce platform where product sales data was getting slow during monthly reports. The query was fetching data from multiple tables, and indexes weren’t used efficiently. I optimized the query by:
+- Adding indexes on frequently queried columns.
+- Rewriting subqueries into `JOIN` operations.
+- Reducing the data fetched by filtering early with more restrictive `WHERE` clauses.
+
+The result was a huge performance improvement. The report that used to take 10 minutes to run was reduced to under 2 minutes.
+
+---
+
+# 17. 
+
+**Interviewer**: What is a Common Table Expression (CTE) in SQL, and when would you use it? Write a CTE query to calculate cumulative monthly sales.
+
+**You**: A **Common Table Expression (CTE)** is a temporary result set that can be referenced within a `SELECT`, `INSERT`, `UPDATE`, or `DELETE` statement. It helps make complex queries more readable and modular by breaking them down into smaller, more manageable parts.
+
+### When to Use:
+- **Readability**: When you want to simplify complex queries.
+- **Reusability**: When you need to reference a subquery multiple times within the same query.
+- **Recursion**: For recursive queries, like calculating hierarchical data.
+
+### CTE Query for Cumulative Monthly Sales:
+
+Let’s say you have a table called `Sales` with columns `SaleDate` and `Amount`. Here’s how you could calculate cumulative monthly sales:
+
+```sql
+WITH MonthlySales AS (
+    SELECT 
+        YEAR(SaleDate) AS Year,
+        MONTH(SaleDate) AS Month,
+        SUM(Amount) AS TotalSales
+    FROM Sales
+    GROUP BY YEAR(SaleDate), MONTH(SaleDate)
+)
+SELECT 
+    Year,
+    Month,
+    TotalSales,
+    SUM(TotalSales) OVER (ORDER BY Year, Month) AS CumulativeSales
+FROM MonthlySales
+ORDER BY Year, Month;
+```
+
+### Explanation:
+- The CTE `MonthlySales` calculates the total sales for each month.
+- The outer query uses a **window function** (`SUM() OVER()`) to calculate the cumulative sales for each month.
+
+Using a CTE like this makes the query cleaner and easier to maintain. 
+
+---
+
+# 18. 
+
+**Interviewer**: Can you explain the concept of JOINs?
+
+**You**: Sure! In SQL, a **JOIN** is used to combine data from two or more tables based on a related column. JOINs help you retrieve data that spans multiple tables, making it easier to work with relational data. There are different types of JOINs, each with a specific purpose:
+
+1. **INNER JOIN**: 
+   - Returns only the rows where there is a match in both tables.
+   - **Example**: If you have a `Customers` table and an `Orders` table, an `INNER JOIN` will return only customers who have placed orders.
+
+   ```sql
+   SELECT Customers.Name, Orders.OrderID
+   FROM Customers
+   INNER JOIN Orders ON Customers.CustomerID = Orders.CustomerID;
+   ```
+
+2. **LEFT JOIN (or LEFT OUTER JOIN)**: 
+   - Returns all rows from the left table (first one) and the matched rows from the right table. If there is no match, NULL values will appear for the right table's columns.
+   - **Example**: If you want to see all customers and their orders, even if some customers haven’t placed any orders.
+
+   ```sql
+   SELECT Customers.Name, Orders.OrderID
+   FROM Customers
+   LEFT JOIN Orders ON Customers.CustomerID = Orders.CustomerID;
+   ```
+
+3. **RIGHT JOIN (or RIGHT OUTER JOIN)**: 
+   - Similar to a LEFT JOIN, but returns all rows from the right table and the matched rows from the left table. If there's no match, NULLs are returned for the left table's columns.
+   - **Example**: It’s the opposite of LEFT JOIN, typically used if you want to see all orders, including those with no customer details.
+
+4. **FULL JOIN (or FULL OUTER JOIN)**: 
+   - Combines the results of both LEFT and RIGHT JOINs. It returns all rows from both tables, with NULLs in columns where there’s no match.
+   - **Example**: If you want to see all customers and all orders, including customers with no orders and orders without customers.
+
+   ```sql
+   SELECT Customers.Name, Orders.OrderID
+   FROM Customers
+   FULL JOIN Orders ON Customers.CustomerID = Orders.CustomerID;
+   ```
+
+5. **CROSS JOIN**: 
+   - Returns the Cartesian product of both tables, meaning it combines every row of the first table with every row of the second table.
+   - **Example**: If you want to generate all possible combinations of two sets of data (but it’s rare in practice).
+
+   ```sql
+   SELECT * FROM Products
+   CROSS JOIN Categories;
+   ```
+
+---
+
+So, to summarize:
+- **INNER JOIN**: Only matching rows.
+- **LEFT JOIN**: All from the left, matched from the right.
+- **RIGHT JOIN**: All from the right, matched from the left.
+- **FULL JOIN**: All from both sides.
+- **CROSS JOIN**: All combinations of rows from both tables.
+
+---
+
+
+# 19. 
+
+**Interviewer**: Can you describe the order of operations in a SQL query?
+
+**You**: Sure! SQL queries have a specific order in which operations are performed, and understanding this sequence helps in writing efficient and correct queries. Here's the general order of operations:
+
+1. **FROM**: 
+   - This is the first step where SQL identifies the tables or views from which to pull data.
+
+2. **JOIN**: 
+   - After the tables are identified, any joins are applied to combine them based on the specified conditions (like `INNER JOIN`, `LEFT JOIN`, etc.).
+
+3. **WHERE**: 
+   - The `WHERE` clause is applied next to filter rows based on specified conditions. This operation happens before any grouping or aggregation.
+
+4. **GROUP BY**: 
+   - If the query involves grouping data (like `GROUP BY`), this step groups the rows based on the specified columns.
+
+5. **HAVING**: 
+   - The `HAVING` clause filters the groups created by `GROUP BY`. It's similar to `WHERE`, but it works on aggregated data.
+
+6. **SELECT**: 
+   - The `SELECT` statement is executed next, choosing which columns to return in the final result set.
+
+7. **DISTINCT**: 
+   - If you use `DISTINCT`, it removes duplicate rows after the selection of columns.
+
+8. **ORDER BY**: 
+   - After selecting and filtering the data, the `ORDER BY` clause sorts the result set.
+
+9. **LIMIT / OFFSET**: 
+   - Finally, if you use `LIMIT` (or `TOP` in SQL Server), it limits the number of rows returned, or `OFFSET` to skip a certain number of rows.
+
+### Example:
+Let’s look at an example SQL query and how this order works:
+
+```sql
+SELECT Department, COUNT(EmployeeID)
+FROM Employees
+JOIN Departments ON Employees.DepartmentID = Departments.DepartmentID
+WHERE Salary > 50000
+GROUP BY Department
+HAVING COUNT(EmployeeID) > 10
+ORDER BY Department;
+```
+
+- **FROM**: Employees and Departments are identified.
+- **JOIN**: The `Employees` table is joined with the `Departments` table.
+- **WHERE**: Filters out employees with a salary less than 50,000.
+- **GROUP BY**: Groups the results by department.
+- **HAVING**: Filters groups with fewer than 10 employees.
+- **SELECT**: Chooses `Department` and `COUNT(EmployeeID)`.
+- **ORDER BY**: Sorts the result by department.
+
+So, the order of operations is:  
+**FROM → JOIN → WHERE → GROUP BY → HAVING → SELECT → DISTINCT → ORDER BY → LIMIT/OFFSET.**
+
+---
+
+
+# 20.
+
+**Interviewer**: What is indexing? Explain its use cases.
+
+**You**: Oh, indexing in SQL is basically a way to speed up data retrieval. Imagine you're looking for a specific word in a book. Instead of reading through the whole book, you use the index at the back. In databases, an index works similarly – it helps the database quickly find the data you're looking for without scanning the whole table.
+
+### Use cases for indexing:
+1. **Faster Searches**: If you frequently search for data in a specific column, indexing that column speeds things up.
+2. **Improved Sorting**: Indexes help with `ORDER BY` queries by quickly sorting the data.
+3. **Efficient Joins**: If you’re joining tables, indexes on the columns used in the join can make it much faster.
+4. **Unique Constraints**: For `Primary Key` or `Unique` constraints, indexes ensure the data is unique and speed up lookups.
+
+But there’s a downside – indexes take up space and can slow down data insertions or updates because they need to be updated too.
+
+---
+
+# 21.
+
+**Interviewer**: Describe the purpose of window functions and how they might be used to analyze customer behavior trends over time.
+
+**You**: Window functions in SQL are super helpful when you want to perform calculations across a set of rows related to the current row, but without collapsing the result into a single output. They let you apply functions like `ROW_NUMBER()`, `RANK()`, or `SUM()` to a "window" of data while still keeping each row in the output.
+
+For example, if you’re analyzing customer behavior trends, you can use window functions to calculate things like:
+
+- **Running totals**: If you wanted to track a customer's total spending over time, you could use a window function to calculate the cumulative sum of their purchases.
+  
+  ```sql
+  SELECT CustomerID, OrderDate, Amount, 
+         SUM(Amount) OVER (PARTITION BY CustomerID ORDER BY OrderDate) AS RunningTotal
+  FROM Orders;
+  ```
+
+- **Ranking**: You could rank customers by their spending each month and compare changes in behavior.
+
+  ```sql
+  SELECT CustomerID, Month, Amount, 
+         RANK() OVER (PARTITION BY Month ORDER BY Amount DESC) AS Rank
+  FROM Sales;
+  ```
+
+- **Moving Averages**: For customer purchase trends over time, you could use `AVG()` over a window to calculate moving averages, helping identify trends like increasing or decreasing spending.
+
+  ```sql
+  SELECT CustomerID, OrderDate, Amount,
+         AVG(Amount) OVER (PARTITION BY CustomerID ORDER BY OrderDate ROWS BETWEEN 3 PRECEDING AND CURRENT ROW) AS MovingAvg
+  FROM Orders;
+  ```
+
+Basically, window functions allow you to look at trends across rows while keeping the row-level detail intact. They’re great for analyzing things like customer retention, sales trends, and ranking customers based on behavior over time.
+
+----
+
+# 22.    
+
+
+**Interviewer**: How would you retrieve policyholders whose premium increased more than 20% in the past year?
+
+**You**: To retrieve policyholders whose premium increased by more than 20% in the past year, you can use a SQL query that compares the premium values between the current and previous year for each policyholder. Here's a simple approach using a `JOIN` to match each policyholder’s premium data from both years:
+
+```sql
+SELECT p1.PolicyholderID, p1.Premium AS CurrentPremium, p2.Premium AS PreviousPremium
+FROM Premiums p1
+JOIN Premiums p2 ON p1.PolicyholderID = p2.PolicyholderID
+WHERE p1.Year = YEAR(CURDATE()) 
+  AND p2.Year = YEAR(CURDATE()) - 1
+  AND p1.Premium > p2.Premium * 1.2;
+```
+
+### Explanation:
+1. **Self-Join**: We're joining the `Premiums` table on itself, matching the same `PolicyholderID` but for two different years: the current year (`p1`) and the previous year (`p2`).
+2. **Comparison**: We're checking if the current year's premium is more than 20% higher than the previous year's premium using `p1.Premium > p2.Premium * 1.2`.
+
+This query will return a list of policyholders who have seen their premiums increase by more than 20% from the previous year.
+
+----
+
+# 22
+
+**Interviewer**: Explain indexing. When would an index potentially reduce performance, and how would you approach an indexing strategy for a large dataset?
+
+**You**: Indexing is like an address book for your database—when you want to find something, the index helps you find it faster. But, it can slow down things like `INSERT`, `UPDATE`, and `DELETE` because the index needs to be updated too.
+
+### When it can hurt performance:
+- **Slower writes**: If you’re constantly adding or changing data, indexes can make those operations slower.
+- **Storage**: Indexes take up extra space, so having too many can be a problem.
+- **Unnecessary indexing**: Indexing on columns that don’t get queried often isn’t helpful.
+
+### Indexing for large datasets:
+- Focus on columns that are frequently used in filters or joins.
+- Use a **clustered index** on your primary key and date columns.
+- For other queries, use **non-clustered** indexes, but don’t overdo it.
+- Consider **composite indexes** for queries with multiple conditions.
+
+---
+
+# 24.
+
+**Interviewer**: Explain how indexing works in SQL and how to decide which columns should be indexed for optimal performance.
+
+**You**: Sure! In SQL, indexing is like creating a shortcut to help the database find data faster. When you create an index on a column, SQL creates a data structure (like a tree) that allows for quicker lookups. Instead of scanning the entire table, the database can use the index to jump straight to the relevant data.
+
+### How it works:
+- **Structure**: Most SQL indexes use a B-tree structure, where the data is sorted and the database can traverse the tree to find the data quickly.
+- **Speed**: Indexes improve the speed of `SELECT` queries, especially those with `WHERE`, `JOIN`, `ORDER BY`, or `GROUP BY` clauses.
+
+### Deciding which columns to index:
+- **Frequently Filtered Columns**: Index columns that are often used in `WHERE` conditions.
+  - Example: If you frequently query by `CustomerID`, indexing this column will speed things up.
+  
+- **Columns Used in Joins**: Index columns that are often used to join tables.
+  - Example: If you join on `OrderID` in multiple tables, index that column.
+  
+- **Columns in Sorting or Grouping**: If you often sort or group by a column, consider indexing it.
+  - Example: Indexing a `Date` column when you regularly sort records by date.
+
+- **Unique or High-Cardinality Columns**: Columns with many unique values (like `EmployeeID` or `OrderID`) benefit most from indexing.
+
+### When not to index:
+- **Columns with Low Selectivity**: Avoid indexing columns with many duplicate values, like `Gender` or `Country`, as it won’t provide much benefit.
+- **Too Many Indexes**: Having too many indexes can slow down `INSERT`, `UPDATE`, and `DELETE` operations because the index has to be updated every time data changes.
+
+In short, focus on indexing columns frequently used in filters, joins, or sorting, but avoid over-indexing to maintain a balance between read and write performance.
+
+----
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
